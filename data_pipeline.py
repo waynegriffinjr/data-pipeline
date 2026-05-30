@@ -1,7 +1,9 @@
 import pandas as pd
-import matplotlib as plt
-import csv
+import matplotlib.pyplot as plt
 import re
+import matplotlib
+import matplotlib.pyplot as plt
+import os
 
 
 class DataPipeline:
@@ -43,14 +45,8 @@ class DataPipeline:
 
     def __init__(self, filepath):
         """Load the CSV at `filepath` into self.df (a pandas DataFrame).
-        Print how many rows and columns were loaded.
-
-        Hint: use pd.read_csv()
-        Wrap the load in try/except to catch FileNotFoundError.
-
-        Args:
-            filepath: path to the messy CSV file
-        """
+        Print how many rows and columns were loaded."""
+        
         self.filepath = filepath # Foundation of the object's state: storing the string filepath that the user entered.
         self.df = None # The DataFrame must live on the object so that all other methods can use it when called (shared state).
         
@@ -61,12 +57,7 @@ class DataPipeline:
            
         except FileNotFoundError:
             print("File not found. Sorry for the inconvenience. Please try again.") # Error Handling with Grace.
-        
-                # ✔ Stores filepath
-                # ✔ Creates shared DataFrame state
-                # ✔ Wraps load in try/except
-                # ✔ Prints only the shape
-                # ✔ Handles missing file
+
 
     def clean(self):
        
@@ -149,80 +140,103 @@ class DataPipeline:
         
 
     def analyze(self):
-        """Compute summary statistics from the cleaned self.df.
-
-        Compute and print:
-
-        4. Pearson correlation between years_experience and salary
-           Hint: drop rows where either is NaN, then Series.corr()
-
-        5. One additional insight of your choice (e.g., satisfaction by location)
-
-        Return a dict with all results so main.py can use them.
-        Keys to use: "avg_salary_by_dept", "avg_satisfaction_by_dept",
-                     "headcount_by_location", "experience_salary_correlation",
-                     "avg_satisfaction_by_location"
-        """
-        # Calculates and prints average salary.
+        """Compute summary statistics from the cleaned self.df."""
+        
+        # Calculates and prints average salary by department.
         avg_salary = self.df.groupby("department")["salary"].mean().round(0)
         print("\nAverage salary by department:")
         print(avg_salary)
         
-        #Calculates and prints average satisfaction score.
+        # Calculates and prints average satisfaction score by department.
         avg_satisfaction = self.df.groupby("department")["satisfaction_score"].mean().round(0)
         print("\nAverage satisfaction score by department:")
         print(avg_satisfaction)
         
-        #Calculates and prints employee headcount by location.
-        emp_by_loc = self.df["office_location"].value_counts()
+        # Calculates and prints employee headcount by location.
+        employees_by_loc = self.df["office_location"].value_counts()
         print("\nEmployee Headcount by Location:")
-        print(emp_by_loc)
+        print(employees_by_loc)
         
+        # Pearson Correlation: calcualtes and prints years of expereince and salary corr.
+        subset = self.df[["years_experience", "salary"]].dropna()
+        corr = subset["years_experience"].corr(subset["salary"])
+        print(f"\nPearson correlation (years_experience vs salary): {corr:3f}")
         
+        # Calculates and prints satisfaction by location.
+        satisfaction_by_location = self.df.groupby("office_location")["satisfaction_score"].mean().round(0)
+        print("\nAverage satisfaction score by office location:")
+        print(satisfaction_by_location)
+        
+        # Dictionary of results that main.py can access
+        return {
+            "avg_salary_by_dept": avg_salary,
+            "avg_satisfaction_by_dept": avg_satisfaction,
+            "headcount_by_location": employees_by_loc,
+            "experience_salary_correlation": corr,
+            "avg_satisfaction_by_location": satisfaction_by_location
+            }
 
-    def visualize(self, output_path="output/charts.png"):
-        """Create and save visualizations to `output_path`.
+        
+    def visualize(self, results, output_path="output/charts.png"):
+        matplotlib.use("Agg")   # prevents display errors
+        """Create and save visualizations to `output_path.`"""
+        fig, axes = plt.subplots(1, 3, figsize=(15, 5)) # One figure with 3 plots (1 row, 3 columns of plots).
+        ax1, ax2, ax3 = axes # Names each axis.
+        
+        #Bar Chart: Average salary by department.
+        avg_salary = results["avg_salary_by_dept"] # Grab Series from analyze().
+        ax1.bar(avg_salary.index, avg_salary.values) # Make the bar chart. x-axis, y-axis.
+        ax1.set_title("Average Salary by Department") # Title.
+        ax1.set_xticklabels(axis="x", rotation=45) # No overlap.
+        
+        # Histogram for satisfaction distribution.
+        ax2.hist(self.df["satisfaction_score"].dropna(), bins=10) # Make a histogram with 10 buckets.
+        ax2.set_title("Satisfaction Distribution") # Title.
+        
+        # Horizontal bar chart: headcount by office location.
+        headcount = results["headcount_by_location"] # Uses computed results from analyze().
+        ax3.bar(headcount.index, headcount.values) # Makes horizontal bar chart.
+        ax3.set_title("Headcount by Location") # Title.
+        
+        plt.tight_layout() # Auto-adjust spacing so labels don't overlap
 
-        Required charts:
-        - Bar chart: average salary by department
-        - Histogram: satisfaction score distribution (bins 1–10)
-        Bonus:
-        - Horizontal bar: headcount by office location
-
-        Use matplotlib with plt.subplots() for a multi-chart layout.
-        Save with plt.savefig(output_path, dpi=120, bbox_inches="tight").
-        Call plt.close() after saving.
-
-        Hint: import matplotlib; matplotlib.use("Agg") at top of file
-              prevents errors when no display is available.
-
-        Args:
-            output_path: where to save the PNG file
-        """
-        # TODO: implement visualize()
-        pass
+        os.makedirs(os.path.dirname(output_path), exist_ok=True) # Debugging "FileNotFoundError" - Python now creates the folder automatically.
+        plt.savefig(output_path, dpi=120, bbox_inches="tight") # Save the whole figure to a PNG file.
+        
+        plt.close() # Close figure.
 
     def export(self, output_path="output/clean_employees.csv"):
-        """Save the cleaned self.df to a CSV at `output_path`.
-
-        Create the output directory if it doesn't exist.
-        Wrap in try/except.
-
-        Hint: df.to_csv(output_path, index=False)
-
-        Args:
-            output_path: path for the exported CSV
-        """
-        # TODO: implement export()
-        pass
+        """Save the cleaned self.df to a CSV at `output_path.`"""
+        os.makedirs(os.path.dirname(output_path), exist_ok=True) # Debugging "FileNotFoundError" - Python now creates
+        self.df.to_csv(output_path, index=False)
 
     def run(self):
-        """Execute the full pipeline: clean → analyze → visualize → export.
-
-        Build output paths using os.path.join(os.path.dirname(__file__), "output", ...).
-        Return the results dict from analyze().
-        """
-        # TODO: call each method in order and return results
-        pass
+        """Execute the full pipeline: clean → analyze → visualize → export."""
+        # Call each method in order and return results.
+        #1. Clean the data.
+        self.clean()    
+        
+        #2. Analyze the data.
+        results = self.analyze()
+        
+        #3. Build absolute output paths.
+        base_dir = os.path.dirname(__file__) # Folder where this .py file lives.
+        output_dir = os.path.join(base_dir, "output") # /.../data-pipeline/output
+        
+        charts_path = os.path.join(output_dir, "charts.png") # Builds full path to chart image. 
+        export_path = os.path.join(base_dir, "clean_employees.csv") # Builds the full path to cleaned CSV.
+        
+        #4. Visualize using the results dictionary.
+        self.visualize(results, output_path=charts_path) # Uses results dict and saves chart to the correct absolute path.
+        
+        #5. Export cleaned data.
+        self.export(output_path=export_path) #Saves the CSV to the correct absolute path.
+        
+        #6. Return the results dictionary.
+        return results # Gives main.py access to print or use analysis.
     
-DataPipeline("messy_employee_survey.csv").clean().analyze()
+ 
+    
+pipeline = DataPipeline("messy_employee_survey.csv")
+results = pipeline.run()
+print(results)
