@@ -1,4 +1,4 @@
-**Data Processing Pipeline**
+**Employee Survey Data Pipeline**
 
 A modular, end‑to‑end data processing pipeline built in Python to transform messy, unstructured survey data into clean, reliable, and actionable insights. This project reinforces core full‑stack engineering fundamentals: data hygiene, automation, orchestration, reproducibility, and clean architecture.
 
